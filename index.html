@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Traffic Enforcement Reporter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .preview-side {
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+        }
+
+        h1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"], input[type="datetime-local"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Tags Input */
+        .tags-input-wrapper {
+            position: relative;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .tags-input-wrapper:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .tag {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        #categoryInput {
+            border: none;
+            padding: 4px;
+            flex: 1;
+            min-width: 150px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .suggestions-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            margin-top: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .suggestion-item:hover { background: #f0f2f5; }
+
+        /* Image upload */
+        .image-upload-area {
+            border: 2px dashed #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+
+        .image-upload-area:hover {
+            border-color: #667eea;
+            background: #f5f5ff;
+        }
+
+        .image-upload-area input[type="file"] {
+            display: none;
+        }
+
+        .upload-label {
+            cursor: pointer;
+            display: block;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .upload-hint {
+            color: #aaa;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .image-preview-wrap {
+            margin-top: 12px;
+            display: none;
+            position: relative;
+        }
+
+        .image-preview-wrap img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button[type="submit"], .geo-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        button[type="submit"]:hover, .geo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button[type="submit"]:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .geo-btn {
+            margin-bottom: 10px;
+            background: #28a745;
+        }
+
+        .geo-btn:hover { background: #218838; }
+
+        .location-info {
+            margin-top: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #555;
+            display: none;
+            word-break: break-all;
+        }
+
+        /* Preview panel */
+        .preview-header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .placeholder-preview {
+            text-align: center;
+            padding: 60px 20px;
+            color: #aaa;
+        }
+
+        .tweet-preview {
+            background: #f0f2f5;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .tweet-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .tweet-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .tweet-name { font-weight: 700; color: #1a1a2e; }
+        .tweet-handle { color: #657786; font-size: 14px; }
+
+        .tweet-text {
+            margin: 12px 0;
+            line-height: 1.5;
+            color: #14171a;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 15px;
+        }
+
+        .tweet-image {
+            margin-top: 12px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .tweet-image img {
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+        }
+
+        .tweet-stats {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e1e8ed;
+            color: #657786;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .char-count {
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .char-ok { color: #28a745; }
+        .char-warn { color: #e74c3c; }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .button-group button {
+            flex: 1;
+            min-width: 110px;
+            padding: 12px 10px;
+            border: none;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+            font-family: inherit;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .button-group button:hover { transform: translateY(-1px); }
+
+        .copy-btn { background: #28a745; }
+        .copy-btn:hover { box-shadow: 0 6px 16px rgba(40,167,69,0.4); }
+
+        .copy-img-btn { background: #e67e22; }
+        .copy-img-btn:hover { box-shadow: 0 6px 16px rgba(230,126,34,0.4); }
+
+        .twitter-btn { background: #1DA1F2; }
+        .twitter-btn:hover { box-shadow: 0 6px 16px rgba(29,161,242,0.4); }
+
+        .disclaimer {
+            font-size: 12px;
+            color: #888;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        @media (max-width: 700px) {
+            .app-layout { grid-template-columns: 1fr; }
+            .preview-side { position: static; }
+            .container { padding: 20px; }
+            .button-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+
+    <!-- LEFT: Form -->
+    <div class="container">
+        <h1>🚦 Traffic Reporter</h1>
+        <p class="subtitle">Report violations to traffic police</p>
+
+        <form id="reportForm">
+
+            <div class="form-group">
+                <label>📸 Upload Image (Optional)</label>
+                <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
+                    <input type="file" id="imageInput" accept="image/*" capture="environment">
+                    <label class="upload-label" for="imageInput">📷 Tap to capture / choose image</label>
+                    <p class="upload-hint">JPEG, PNG, GIF · Max 5 MB</p>
+                </div>
+                <div class="image-preview-wrap" id="imagePreviewWrap">
+                    <img id="previewImg" alt="Violation evidence">
+                    <button type="button" class="remove-image" id="removeImage" title="Remove image">×</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>📍 Location</label>
+                <button type="button" class="geo-btn" id="getLocation">📍 Get Current Location</button>
+                <input type="text" id="location" placeholder="Or enter manually…">
+                <div class="location-info" id="locationInfo"></div>
+            </div>
+
+            <div class="form-group">
+                <label>📅 Date &amp; Time</label>
+                <input type="datetime-local" id="datetime">
+            </div>
+
+            <div class="form-group">
+                <label>🚨 Violation Categories</label>
+                <div class="tags-input-wrapper" id="tagsWrapper">
+                    <div id="selectedTags" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+                    <input type="text" id="categoryInput" placeholder="Search and add…">
+                    <div id="suggestions" class="suggestions-list"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>🏙️ City</label>
+                <select id="city" required>
+                    <option value="">Select city…</option>
+                </select>
+            </div>
+
+            <button type="submit" id="submitBtn">🔍 Generate Preview</button>
+        </form>
+    </div>
+
+    <!-- RIGHT: Preview -->
+    <div class="container preview-side">
+        <div class="preview-header">
+            <h2 style="color:#333;font-size:20px;">📝 Tweet Preview</h2>
+        </div>
+        <div id="previewArea">
+            <div class="placeholder-preview">
+                <div style="font-size:40px;margin-bottom:10px;">📋</div>
+                <p>Fill out the form and click "Generate Preview" to see your tweet here.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+// Add your city → Twitter handle mappings here.
+// Key format: lowercase city name with underscores.
+const CITY_HANDLES = {
+    delhi:        '@DelhiTrafficPol',
+    mumbai:       '@MTPHereToHelp',
+    bangalore:    '@BlrCityTraffic',
+    chennai:      '@chennaitraffic',
+    kolkata:      '@KolkataTraffic',
+    hyderabad:    '@HYDTP',
+    pune:         '@PuneTrafficPol',
+    ahmedabad:    '@AhmedabadTP',
+    coimbatore:   '@CBETrafficPol',
+    madurai:      '@MaduraiTraffic',
+    salem:        '@SalemTrafficPol',
+    tiruchirappalli: '@TrichyTraffic',
+    vellore:      '@VelloreTraffic',
+    tirunelveli:  '@TNVLTrafficPol',
+    erode:        '@ErodeTrafficPol',
+    tiruppur:     '@TiruppurTP',
+    tambaram:     '@ChennaiTraffic',
+};
+
+const DEFAULT_HANDLE = '@trafficpolice';
+
+const CATEGORIES = [
+    'Defective Number Plate',
+    'One Way / No Entry',
+    'No Parking / Wrong Parking',
+    'Not Wearing Seat Belt',
+    'Parking on Footpath / Footpath Driving/Riding',
+    'Biker without Helmet',
+    'Pillion Riding without Helmet',
+    'Toddler without Helmet or Safety Harness',
+    'Parking near Traffic Light / Stopped on Pedestrian Crossing',
+    'Taking a Prohibited U-Turn',
+    'Triple Riding',
+    'Using Mobile While Driving',
+    'Violating Lane Discipline',
+    'Using Black Film / Other Prohibited Materials',
+    'Red Light Jump',
+    'Jaywalking',
+    'Over Speeding',
+    'DUI / Drunk Driving',
+    'Riding without a Valid License',
+    'Driving without Insurance',
+    'Illegal Overtaking',
+    'PUC Emission Violation',
+    'Driving without Headlights at Night',
+    'Riding without a Rearview Mirror',
+    'Noisy Engine / Honking in No-Honking Zone',
+    'Riding without a Proper Muffler',
+    'Driving in Bus Lane',
+];
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+// Set default datetime to now (local)
+const now = new Date();
+now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+document.getElementById('datetime').value = now.toISOString().slice(0, 16);
+
+// Populate cities dropdown
+const citySelect = document.getElementById('city');
+const cityNames = Object.keys(CITY_HANDLES).map(k =>
+    k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+);
+// Extra cities without specific handles
+const extraCities = ['Nagercoil', 'Thanjavur', 'Dindigul', 'Cuddalore', 'Kanchipuram', 'Nagpur', 'Jaipur', 'Lucknow', 'Surat', 'Visakhapatnam'];
+[...cityNames, ...extraCities].sort().forEach(city => {
+    const opt = document.createElement('option');
+    opt.value = city;
+    opt.textContent = city;
+    citySelect.appendChild(opt);
+});
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+
+function getHandle(city) {
+    const key = city.toLowerCase().replace(/\s/g, '_');
+    return CITY_HANDLES[key] || DEFAULT_HANDLE;
+}
+
+function buildTweetText({ categories, city, datetime, location }) {
+    const handle = getHandle(city);
+    const dt = datetime ? new Date(datetime).toLocaleString('en-IN') : new Date().toLocaleString('en-IN');
+
+    let tweet = `${handle}\n\n`;
+    tweet += `📋 Violation: ${categories.join(', ')}\n`;
+    tweet += `📍 City: ${city}\n`;
+    tweet += `📅 Date/Time: ${dt}\n`;
+    if (location) tweet += `🗺️ Location: ${location}\n`;
+    tweet += `\n#SafeRoads #RoadSafety #${city.replace(/\s/g, '')}`;
+    categories.forEach(cat => {
+        const tag = String(cat).replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+        if (tag) tweet += ` #${tag}`;
+    });
+    if (tweet.length > 280) tweet = tweet.substring(0, 277) + '...';
+    return tweet;
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+// ── TAGS INPUT ────────────────────────────────────────────────────────────────
+
+let selectedCategories = new Set();
+const categoryInput = document.getElementById('categoryInput');
+const suggestionsList = document.getElementById('suggestions');
+const selectedTagsContainer = document.getElementById('selectedTags');
+
+categoryInput.addEventListener('input', e => {
+    const val = e.target.value.toLowerCase().trim();
+    if (!val) { suggestionsList.style.display = 'none'; return; }
+    const filtered = CATEGORIES.filter(c => c.toLowerCase().includes(val) && !selectedCategories.has(c));
+    renderSuggestions(filtered);
+});
+
+function renderSuggestions(list) {
+    if (!list.length) { suggestionsList.style.display = 'none'; return; }
+    suggestionsList.innerHTML = list.map(item => `<div class="suggestion-item">${escapeHtml(item)}</div>`).join('');
+    suggestionsList.style.display = 'block';
+    suggestionsList.querySelectorAll('.suggestion-item').forEach(el => {
+        el.addEventListener('click', () => {
+            addTag(el.textContent);
+            categoryInput.value = '';
+            suggestionsList.style.display = 'none';
+            categoryInput.focus();
+        });
+    });
+}
+
+function addTag(cat) { selectedCategories.add(cat); renderTags(); }
+function removeTag(cat) { selectedCategories.delete(cat); renderTags(); }
+
+function renderTags() {
+    selectedTagsContainer.innerHTML = Array.from(selectedCategories).map(cat => `
+        <div class="tag">
+            ${escapeHtml(cat)}
+            <span class="tag-remove" onclick="removeTag(${JSON.stringify(cat)})" title="Remove">×</span>
+        </div>
+    `).join('');
+}
+
+document.addEventListener('click', e => {
+    if (!document.getElementById('tagsWrapper').contains(e.target)) {
+        suggestionsList.style.display = 'none';
+    }
+});
+
+// ── IMAGE HANDLING ────────────────────────────────────────────────────────────
+
+let imageDataUrl = null;
+
+document.getElementById('imageInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+        imageDataUrl = ev.target.result;
+        document.getElementById('previewImg').src = imageDataUrl;
+        document.getElementById('imagePreviewWrap').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+});
+
+document.getElementById('removeImage').addEventListener('click', () => {
+    imageDataUrl = null;
+    document.getElementById('imageInput').value = '';
+    document.getElementById('imagePreviewWrap').style.display = 'none';
+    document.getElementById('previewImg').src = '';
+});
+
+// ── GEOLOCATION ───────────────────────────────────────────────────────────────
+
+document.getElementById('getLocation').addEventListener('click', async function() {
+    if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
+    const btn = this;
+    btn.textContent = '📍 Getting location…';
+    btn.disabled = true;
+
+    navigator.geolocation.getCurrentPosition(
+        async ({ coords: { latitude, longitude, accuracy } }) => {
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+                const data = await r.json();
+                document.getElementById('location').value = (data.display_name || `${latitude}, ${longitude}`).substring(0, 200);
+            } catch {
+                document.getElementById('location').value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+            }
+            const info = document.getElementById('locationInfo');
+            info.innerHTML = `📍 ${latitude.toFixed(6)}, ${longitude.toFixed(6)} · accuracy: ${Math.round(accuracy)}m`;
+            info.style.display = 'block';
+            btn.textContent = '📍 Get Current Location';
+            btn.disabled = false;
+        },
+        err => {
+            const msgs = { 1: 'Permission denied — allow location access.', 2: 'Location unavailable.', 3: 'Request timed out.' };
+            alert('Error: ' + (msgs[err.code] || err.message));
+            btn.textContent = '📍 Get Current Location';
+            btn.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+});
+
+// ── PREVIEW PANEL ─────────────────────────────────────────────────────────────
+
+function updatePreview(tweetText, handle, city) {
+    const previewArea = document.getElementById('previewArea');
+    const imageHtml = imageDataUrl
+        ? `<div class="tweet-image"><img src="${imageDataUrl}" alt="Violation evidence"></div>`
+        : '';
+    const charOk = tweetText.length <= 280;
+    const charClass = charOk ? 'char-ok' : 'char-warn';
+    const charMsg = charOk
+        ? `✓ ${tweetText.length}/280 characters`
+        : `⚠️ Exceeds 280 characters (${tweetText.length}). Trim before posting.`;
+
+    previewArea.innerHTML = `
+        <div class="tweet-preview" id="tweetPreviewCard">
+            <div class="tweet-header">
+                <div class="tweet-avatar">🚔</div>
+                <div class="tweet-user">
+                    <div class="tweet-name">Traffic Reporter</div>
+                    <div class="tweet-handle">${escapeHtml(handle)}</div>
+                </div>
+            </div>
+            <div class="tweet-text">${escapeHtml(tweetText)}</div>
+            ${imageHtml}
+            <div class="tweet-stats">
+                <span>💬 Reply</span>
+                <span>🔄 Retweet</span>
+                <span>❤️ Like</span>
+                <span>📤 Share</span>
+            </div>
+        </div>
+        <div class="char-count ${charClass}">${charMsg}</div>
+        <div class="button-group">
+            <button class="copy-btn" id="copyBtn">📋 Copy Text</button>
+            <button class="copy-img-btn" id="copyImgBtn">🖼️ Copy as Image</button>
+            <button class="twitter-btn" id="twitterBtn">🐦 Open X/Twitter</button>
+        </div>
+        <p class="disclaimer">Tweet won't post automatically — copy and paste on X/Twitter.</p>
+    `;
+
+    document.getElementById('copyBtn').addEventListener('click', () => copyText(tweetText));
+    document.getElementById('copyImgBtn').addEventListener('click', copyAsImage);
+    document.getElementById('twitterBtn').addEventListener('click', () => openTwitter(tweetText));
+}
+
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById('copyBtn');
+        const orig = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = orig, 2000);
+    } catch {
+        alert('Could not copy — please select and copy manually.');
+    }
+}
+
+async function copyAsImage() {
+    const btn = document.getElementById('copyImgBtn');
+    const card = document.getElementById('tweetPreviewCard');
+    btn.textContent = '⏳ Capturing…';
+    btn.disabled = true;
+    try {
+        const canvas = await html2canvas(card, { scale: 2, useCORS: true, backgroundColor: '#f0f2f5' });
+        canvas.toBlob(async blob => {
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                btn.textContent = '✅ Image Copied!';
+            } catch {
+                const a = document.createElement('a');
+                a.download = `traffic-violation-${Date.now()}.png`;
+                a.href = canvas.toDataURL('image/png');
+                a.click();
+                btn.textContent = '✅ Downloaded!';
+            }
+            setTimeout(() => { btn.textContent = '🖼️ Copy as Image'; btn.disabled = false; }, 2500);
+        }, 'image/png');
+    } catch (err) {
+        alert('Screenshot failed: ' + err.message);
+        btn.textContent = '🖼️ Copy as Image';
+        btn.disabled = false;
+    }
+}
+
+function openTwitter(text) {
+    if (imageDataUrl) alert('📸 Image is local — click the image icon on X/Twitter to attach it.\n\nTip: use "Copy as Image" to get the full tweet card!');
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// ── FORM SUBMIT ───────────────────────────────────────────────────────────────
+
+document.getElementById('reportForm').addEventListener('submit', e => {
+    e.preventDefault();
+
+    const categories = Array.from(selectedCategories);
+    if (categories.length === 0) { alert('Please select at least one violation category.'); return; }
+
+    const city = document.getElementById('city').value;
+    if (!city) { alert('Please select a city.'); return; }
+
+    const datetime = document.getElementById('datetime').value;
+    const location = document.getElementById('location').value.trim();
+
+    const tweetText = buildTweetText({ categories, city, datetime, location });
+    const handle = getHandle(city);
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating…';
+
+    // No async needed — all local
+    updatePreview(tweetText, handle, city);
+
+    btn.disabled = false;
+    btn.textContent = '🔍 Generate Preview';
+
+    // Scroll to preview on mobile
+    if (window.innerWidth <= 700) {
+        document.querySelector('.preview-side').scrollIntoView({ behavior: 'smooth' });
+    }
+});
+</script>
+</body>
+</html>
