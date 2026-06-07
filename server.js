@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const dotenv = require('dotenv');
+const fs = require('fs');
 
 dotenv.config();
 
@@ -17,8 +18,8 @@ app.use('/uploads', express.static('uploads'));
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = 'uploads/';
-        if (!require('fs').existsSync(uploadDir)) {
-            require('fs').mkdirSync(uploadDir);
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir);
         }
         cb(null, uploadDir);
     },
@@ -54,11 +55,12 @@ function getTrafficHandle(city) {
 function createTweetText(data) {
     const handle = getTrafficHandle(data.city);
     const dateTime = data.datetime || new Date().toLocaleString();
-    
+
+    // Handle multiple categories
+    const categories = Array.isArray(data.categories) ? data.categories : [];
+
     let tweet = `${handle}\n\n`;
-    tweet += `🚨 TRAFFIC VIOLATION REPORT\n`;
-    tweet += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-    tweet += `📋 Violation: ${data.category}\n`;
+    tweet += `📋 Violation: ${categories.join(', ')}\n`;
     tweet += `📍 City: ${data.city}\n`;
     tweet += `📅 Date/Time: ${dateTime}\n`;
     
@@ -66,11 +68,13 @@ function createTweetText(data) {
         tweet += `🗺️ Location: ${data.location}\n`;
     }
     
-    tweet += `\n#TrafficEnforcement #RoadSafety #${data.city.replace(/\s/g, '')}`;
+    tweet += `\n#SafeRoads #RoadSafety #${data.city.replace(/\s/g, '')}`;
     
     // Add violation-specific hashtags
-    const violationTag = data.category.replace(/\s/g, '').substring(0, 30);
-    tweet += ` #${violationTag}`;
+    categories.forEach(cat => {
+        const violationTag = String(cat).replace(/\s/g, '').substring(0, 30);
+        tweet += ` #${violationTag}`;
+    });
     
     // Truncate if exceeds 280 chars
     if (tweet.length > 280) {
@@ -87,11 +91,14 @@ app.post('/api/prepare-tweet', upload.single('image'), async (req, res) => {
         const imageFile = req.file;
         
         // Validate required fields
-        if (!category || !city) {
-            return res.status(400).json({ error: 'Category and City are required' });
+        // Ensure categories is always an array of strings
+        const categories = [].concat(category || []).filter(c => typeof c === 'string' && c.length > 0);
+        
+        if (categories.length === 0 || !city) {
+            return res.status(400).json({ error: 'At least one Category and City are required' });
         }
         
-        const tweetText = createTweetText({ category, city, datetime, location });
+        const tweetText = createTweetText({ categories, city, datetime, location });
         
         let imageUrl = null;
         if (imageFile) {
@@ -109,7 +116,7 @@ app.post('/api/prepare-tweet', upload.single('image'), async (req, res) => {
                 imageUrl: imageUrl,
                 trafficHandle: trafficHandle,
                 city: city,
-                category: category,
+                category: categories,
                 datetime: datetime || new Date().toISOString(),
                 location: location || null
             }
@@ -144,14 +151,29 @@ app.get('/api/categories', (req, res) => {
         "No Parking / Wrong Parking",
         "Not Wearing Seat Belt",
         "Parking on Footpath / Footpath Driving/Riding",
-        "Riding Without Helmet (including Pillion Rider)",
-        "Parking near Traffic Light / Stopped on Zebra Crossing",
+        "Biker without Helmet",
+        "Pillion Riding without Helmet",
+        "Toddler without helmet or safety harness",
+        "Parking near Traffic Light / Stopped on Pedestrian Crossing",
         "Taking a Prohibited U-Turn",
         "Triple Riding",
         "Using Mobile While Driving",
         "Violating Lane Discipline",
         "Using Black Film / Other Prohibited Materials",
-        "Jumping Traffic Signals"
+        "Red Light Jump",
+        "J Walking",
+        "Over Speeding",
+        "DUI / Drunk Driving",
+        "Not wearing seat belt",
+        "Riding without a valid license",
+        "Driving without insurance",
+        "Illegal Overtaking",
+        "PUC Emission Violation",
+        "Driving without headlights at night",
+        "Riding without a rearview mirror",
+        "Noisy Engine / Honking in No Honking Zone",
+        "Riding without a proper muffler",
+        "Driving in Bus Lane",
     ];
     res.json({ categories });
 });
